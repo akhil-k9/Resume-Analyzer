@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resume Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0e0e;
+    --surface: #161616;
+    --border: #2a2a2a;
+    --text: #e8e8e8;
+    --muted: #666;
+    --accent: #e8ff47;
+    --strong: #4eff91;
+    --moderate: #ffbe47;
+    --weak: #ff5a5a;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 60px 24px 80px;
+  }
+
+  header {
+    width: 100%;
+    max-width: 720px;
+    margin-bottom: 56px;
+  }
+
+  header h1 {
+    font-family: 'DM Mono', monospace;
+    font-size: clamp(1.1rem, 2vw, 1.25rem);
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+
+  header p {
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 0.875rem;
+    letter-spacing: 0.02em;
+  }
+
+  .grid {
+    width: 100%;
+    max-width: 720px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 24px;
+  }
+
+  .card.full { grid-column: 1 / -1; }
+
+  .card label {
+    display: block;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  textarea {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    line-height: 1.7;
+    resize: none;
+    outline: none;
+    min-height: 160px;
+  }
+
+  textarea::placeholder { color: #333; }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 16px 0;
+  }
+
+  .drop-area {
+    border: 1px dashed var(--border);
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  .drop-area:hover { border-color: var(--accent); color: var(--text); }
+  .drop-area.dragging { border-color: var(--accent); }
+
+  .drop-area input[type="file"] { display: none; }
+
+  .file-name {
+    margin-top: 8px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--accent);
+  }
+
+  .or-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 16px 0;
+    color: var(--muted);
+    font-size: 0.75rem;
+  }
+
+  .or-divider::before, .or-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  button[type="submit"] {
+    grid-column: 1 / -1;
+    background: var(--accent);
+    color: #0e0e0e;
+    border: none;
+    padding: 16px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    width: 100%;
+  }
+
+  button[type="submit"]:hover { opacity: 0.85; }
+  button[type="submit"]:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  #results {
+    width: 100%;
+    max-width: 720px;
+    margin-top: 16px;
+    display: none;
+  }
+
+  .score-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .score-left h2 {
+    font-family: 'DM Mono', monospace;
+    font-size: clamp(2.5rem, 8vw, 4rem);
+    font-weight: 300;
+    line-height: 1;
+  }
+
+  .score-left h2 span { font-size: 1.2rem; color: var(--muted); }
+
+  .verdict {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-top: 8px;
+  }
+
+  .verdict.strong { color: var(--strong); }
+  .verdict.moderate { color: var(--moderate); }
+  .verdict.weak { color: var(--weak); }
+
+  .score-bar-wrap {
+    flex: 1;
+    margin-left: 40px;
+  }
+
+  .score-bar-bg {
+    height: 4px;
+    background: var(--border);
+    width: 100%;
+  }
+
+  .score-bar-fill {
+    height: 4px;
+    transition: width 1s cubic-bezier(0.16, 1, 0.3, 1);
+    width: 0%;
+  }
+
+  .score-bar-fill.strong { background: var(--strong); }
+  .score-bar-fill.moderate { background: var(--moderate); }
+  .score-bar-fill.weak { background: var(--weak); }
+
+  .stats {
+    display: flex;
+    gap: 24px;
+    margin-top: 16px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+
+  .kw-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 0;
+  }
+
+  .kw-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 24px;
+  }
+
+  .kw-card h3 {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  .kw-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .kw-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    padding: 4px 10px;
+    border: 1px solid;
+  }
+
+  .kw-tag.matched {
+    border-color: var(--strong);
+    color: var(--strong);
+  }
+
+  .kw-tag.missing {
+    border-color: var(--weak);
+    color: var(--weak);
+  }
+
+  .loader {
+    display: none;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-align: center;
+    padding: 32px;
+    letter-spacing: 0.08em;
+  }
+
+  .error-msg {
+    background: #1a0a0a;
+    border: 1px solid #3a1010;
+    color: var(--weak);
+    padding: 16px 24px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.78rem;
+    display: none;
+    margin-top: 8px;
+  }
+
+  @media (max-width: 580px) {
+    .grid, .kw-grid { grid-template-columns: 1fr; }
+    .score-card { flex-direction: column; align-items: flex-start; }
+    .score-bar-wrap { margin-left: 0; margin-top: 20px; width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Resume Analyzer</h1>
+  <p>RoBERTa-powered semantic matching against job descriptions</p>
+</header>
+
+<form id="analyzeForm" class="grid">
+  <div class="card full">
+    <label>Job Description</label>
+    <textarea id="jdText" name="job_description" rows="7" placeholder="Paste the job description here..."></textarea>
+  </div>
+
+  <div class="card full">
+    <label>Resume</label>
+    <div class="drop-area" id="dropArea">
+      <input type="file" id="resumeFile" name="resume" accept=".pdf,.docx,.txt">
+      <div id="dropText">Drop PDF, DOCX, or TXT — or click to upload</div>
+      <div class="file-name" id="fileName"></div>
+    </div>
+    <div class="or-divider">or paste text</div>
+    <textarea id="resumeText" name="resume_text" rows="6" placeholder="Paste resume text..."></textarea>
+  </div>
+
+  <button type="submit" id="submitBtn">Analyze Match</button>
+</form>
+
+<div class="loader" id="loader">Analyzing with RoBERTa<span id="dots"></span></div>
+<div class="error-msg" id="errorMsg"></div>
+
+<div id="results">
+  <div class="score-card">
+    <div class="score-left">
+      <h2 id="scoreNum">0<span>%</span></h2>
+      <div class="verdict" id="verdict"></div>
+      <div class="stats" id="stats"></div>
+    </div>
+    <div class="score-bar-wrap">
+      <div class="score-bar-bg">
+        <div class="score-bar-fill" id="scoreBar"></div>
+      </div>
+    </div>
+  </div>
+  <div class="kw-grid">
+    <div class="kw-card">
+      <h3>Matched Keywords</h3>
+      <div class="kw-list" id="matchedKw"></div>
+    </div>
+    <div class="kw-card">
+      <h3>Missing Keywords</h3>
+      <div class="kw-list" id="missingKw"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const dropArea = document.getElementById('dropArea');
+  const fileInput = document.getElementById('resumeFile');
+  const fileName = document.getElementById('fileName');
+  const dropText = document.getElementById('dropText');
+
+  dropArea.addEventListener('click', () => fileInput.click());
+
+  dropArea.addEventListener('dragover', e => { e.preventDefault(); dropArea.classList.add('dragging'); });
+  dropArea.addEventListener('dragleave', () => dropArea.classList.remove('dragging'));
+  dropArea.addEventListener('drop', e => {
+    e.preventDefault();
+    dropArea.classList.remove('dragging');
+    const file = e.dataTransfer.files[0];
+    if (file) { fileInput.files = e.dataTransfer.files; showFileName(file.name); }
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) showFileName(fileInput.files[0].name);
+  });
+
+  function showFileName(name) {
+    fileName.textContent = name;
+    dropText.style.display = 'none';
+  }
+
+  const form = document.getElementById('analyzeForm');
+  const loader = document.getElementById('loader');
+  const results = document.getElementById('results');
+  const errorMsg = document.getElementById('errorMsg');
+  const submitBtn = document.getElementById('submitBtn');
+
+  let dotsInterval;
+  function startDots() {
+    let count = 0;
+    document.getElementById('dots').textContent = '';
+    dotsInterval = setInterval(() => {
+      count = (count + 1) % 4;
+      document.getElementById('dots').textContent = '.'.repeat(count);
+    }, 400);
+  }
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    errorMsg.style.display = 'none';
+    results.style.display = 'none';
+    loader.style.display = 'block';
+    submitBtn.disabled = true;
+    startDots();
+
+    const fd = new FormData(form);
+
+    try {
+      const res = await fetch('/analyze', { method: 'POST', body: fd });
+      const data = await res.json();
+
+      clearInterval(dotsInterval);
+      loader.style.display = 'none';
+      submitBtn.disabled = false;
+
+      if (data.error) {
+        errorMsg.textContent = data.error;
+        errorMsg.style.display = 'block';
+        return;
+      }
+
+      document.getElementById('scoreNum').innerHTML = `${data.score}<span>%</span>`;
+      const verdictEl = document.getElementById('verdict');
+      verdictEl.textContent = data.verdict;
+      verdictEl.className = `verdict ${data.verdict_class}`;
+
+      document.getElementById('stats').innerHTML =
+        `<span>${data.resume_length} words resume</span><span>${data.jd_length} words JD</span>`;
+
+      const bar = document.getElementById('scoreBar');
+      bar.className = `score-bar-fill ${data.verdict_class}`;
+      setTimeout(() => { bar.style.width = data.score + '%'; }, 50);
+
+      const matchedEl = document.getElementById('matchedKw');
+      matchedEl.innerHTML = data.matched_keywords.map(k => `<span class="kw-tag matched">${k}</span>`).join('');
+
+      const missingEl = document.getElementById('missingKw');
+      missingEl.innerHTML = data.missing_keywords.map(k => `<span class="kw-tag missing">${k}</span>`).join('');
+
+      results.style.display = 'block';
+
+    } catch {
+      clearInterval(dotsInterval);
+      loader.style.display = 'none';
+      submitBtn.disabled = false;
+      errorMsg.textContent = 'Something went wrong. Is the server running?';
+      errorMsg.style.display = 'block';
+    }
+  });
+</script>
+</body>
+</html>
